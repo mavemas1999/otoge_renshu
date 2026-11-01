@@ -1,0 +1,736 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0e1016">
+<meta name="color-scheme" content="dark">
+<title>音ゲー練習</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" type="image/png" href="./icon-192.png">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<link rel="preconnect" href="https://www.youtube.com">
+<link rel="preconnect" href="https://www.google.com">
+<link rel="preconnect" href="https://i.ytimg.com">
+<link rel="preconnect" href="https://www.gstatic.com">
+<style>
+:root{
+  --bg:#0e1016;--panel:#161922;--btn:#20242f;--btn-on:#2c3242;--line:#2c3140;
+  --text:#eceef3;--sub:#9ba2b3;--accent:#38bdf8;--a:#34d399;--b:#fb7185;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+  font-family:system-ui,-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;
+  overscroll-behavior:none;-webkit-user-select:none;user-select:none}
+body{display:flex;flex-direction:column;height:100dvh;overflow:hidden;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+button{font:inherit;font-size:15px;color:inherit;background:var(--btn);border:1px solid var(--line);border-radius:10px;
+  min-height:44px;min-width:44px;padding:0 12px;display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  touch-action:manipulation;cursor:pointer;transition:transform .06s,background-color .12s;white-space:nowrap}
+button:active{transform:scale(.94);background-color:var(--btn-on)}
+svg{width:22px;height:22px;fill:currentColor;flex:none}
+
+/* ---- 上部バー ---- */
+#top{flex:none;display:flex;align-items:center;gap:10px;height:62px;padding:0 12px}
+#openBtn{font-weight:600}
+#title{flex:1;min-width:0;font-size:14px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#transport{display:flex;gap:8px;flex:none}
+#transport button{height:48px;min-width:70px;font-size:17px;font-weight:700;font-variant-numeric:tabular-nums}
+#playBtn{background:var(--text);color:#0e1016;border-color:transparent}
+#playBtn:active{background:#c9ced9}
+#playBtn svg{width:28px;height:28px}
+
+/* ---- 動画 ---- */
+#stage{flex:1;min-height:0;position:relative;container-type:size;display:flex;align-items:center;justify-content:center;background:#000}
+#frame{position:relative;width:min(100cqw,calc(100cqh * 16 / 9));aspect-ratio:16/9}
+#player{position:absolute;inset:0;width:100%;height:100%;border:0}
+#shield{position:absolute;inset:0;z-index:2}
+#frame.unlocked{outline:3px solid var(--accent);outline-offset:-3px}
+#frame.unlocked #shield{pointer-events:none}
+#empty{position:absolute;inset:0;z-index:3;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:18px;padding:24px;text-align:center;background:var(--bg);color:var(--sub);line-height:1.8;font-size:15px}
+#empty.hide{display:none}
+#empty b{color:var(--text)}
+#emptyOpen{background:var(--accent);color:#04202e;border:none;font-weight:700;padding:0 24px;height:52px;font-size:16px}
+
+/* ---- 操作パネル ---- */
+#panel{flex:none;background:var(--panel);border-top:1px solid var(--line);padding:4px 16px 10px}
+#seekRow{display:flex;align-items:flex-start;gap:16px}
+.time{flex:none;min-width:64px;margin-top:11px;font-size:14px;line-height:20px;color:var(--sub);text-align:center;font-variant-numeric:tabular-nums}
+#curT{color:var(--text)}
+#seek{position:relative;flex:1;height:62px;touch-action:none;cursor:pointer}
+#rail{position:absolute;left:0;right:0;top:18px;height:6px;border-radius:3px;background:#3a4052}
+#range{position:absolute;top:12px;height:18px;border-radius:4px;background:rgba(56,189,248,.13)}
+#range.on{background:rgba(56,189,248,.32)}
+#played{position:absolute;left:0;top:18px;height:6px;border-radius:3px;background:#cfd5e3;width:0}
+#head{position:absolute;top:21px;left:0;width:20px;height:20px;margin:-10px 0 0 -10px;border-radius:50%;background:#fff;
+  box-shadow:0 0 0 3px rgba(0,0,0,.45);pointer-events:none}
+.mark{position:absolute;top:7px;width:0;pointer-events:none}
+.mark i{position:absolute;left:-1.5px;top:0;width:3px;height:29px;border-radius:2px}
+.mark span{position:absolute;top:30px;padding:3px 11px;border-radius:7px;font-size:13px;font-weight:800;color:#08150f;line-height:1.25}
+#mA i,#mA span{background:var(--a)}
+#mA span{right:-1.5px;border-top-right-radius:0}
+#mB i,#mB span{background:var(--b)}
+#mB span{left:-1.5px;border-top-left-radius:0}
+
+#ctrls{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px;margin-top:2px}
+.grp{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.lbl{font-size:13px;color:var(--sub)}
+.pt{display:flex;align-items:center;gap:4px;padding-left:8px;border-left:3px solid}
+.pt.a{border-color:var(--a)}
+.pt.b{border-color:var(--b)}
+.tv{min-width:64px;text-align:center;font-variant-numeric:tabular-nums;font-size:15px}
+.sm{min-width:42px;padding:0 8px;font-size:19px}
+.val{min-width:66px;font-variant-numeric:tabular-nums;font-weight:700;text-align:center;font-size:15px}
+span.val{display:inline-block}
+#loopBtn{min-width:118px;font-weight:600}
+#loopBtn.on{background:var(--accent);color:#04202e;border-color:transparent;font-weight:700}
+#speed{width:170px;height:44px;accent-color:var(--accent);margin:0 2px}
+
+#toast{position:fixed;left:50%;bottom:calc(170px + env(safe-area-inset-bottom));transform:translate(-50%,16px);
+  background:#2c3242;color:var(--text);padding:11px 18px;border-radius:12px;font-size:14px;opacity:0;pointer-events:none;
+  transition:opacity .2s,transform .2s;z-index:10;max-width:90vw;text-align:center;box-shadow:0 6px 24px rgba(0,0,0,.4)}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+
+dialog{border:1px solid var(--line);border-radius:16px;background:var(--panel);color:var(--text);padding:20px;width:min(560px,92vw)}
+dialog::backdrop{background:rgba(0,0,0,.6)}
+dialog h2{margin:0 0 12px;font-size:17px}
+#urlInput{width:100%;height:50px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--text);
+  padding:0 12px;font-size:16px;-webkit-user-select:text;user-select:text;outline:none}
+#urlInput:focus{border-color:var(--accent)}
+.drow{display:flex;gap:8px;margin-top:14px;justify-content:flex-end;flex-wrap:wrap}
+.primary{background:var(--accent);color:#04202e;border-color:transparent;font-weight:700;min-width:84px}
+
+/* 狭い画面（縦向きのスマホなど） */
+@media (max-width:640px){
+  #top{gap:6px;padding:0 8px}
+  #openBtn{padding:0 8px}
+  #transport button{min-width:56px}
+  #panel{padding:4px 10px 8px}
+  #seekRow{gap:12px}
+  .time{min-width:52px;font-size:12px}
+  #speed{width:110px}
+}
+</style>
+</head>
+<body>
+
+<header id="top">
+  <button id="openBtn" aria-label="動画を開く"><svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>動画</button>
+  <div id="title"></div>
+  <div id="transport">
+    <button id="backBtn" aria-label="戻る"><svg viewBox="0 0 24 24"><path d="M11 18V6l-8.5 6 8.5 6zm.5-6 8.5 6V6l-8.5 6z"/></svg><span class="skn">5</span></button>
+    <button id="playBtn" aria-label="再生／停止"><svg viewBox="0 0 24 24"><path id="playIcon" d="M8 5v14l11-7z"/></svg></button>
+    <button id="fwdBtn" aria-label="進む"><span class="skn">5</span><svg viewBox="0 0 24 24"><path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/></svg></button>
+  </div>
+</header>
+
+<main id="stage">
+  <div id="frame"><div id="player"></div><div id="shield"></div></div>
+  <div id="empty" class="hide">
+    <div><b>YouTubeアプリの「共有」→「音ゲー練習」</b>で動画を開けます。<br>またはURLを貼り付けて開いてください。</div>
+    <button id="emptyOpen">URLを貼り付けて開く</button>
+  </div>
+</main>
+
+<section id="panel">
+  <div id="seekRow">
+    <span class="time" id="curT">0:00.0</span>
+    <div id="seek" aria-label="シークバー">
+      <div id="rail"></div><div id="range"></div><div id="played"></div>
+      <div class="mark" id="mA"><i></i><span>A</span></div>
+      <div class="mark" id="mB"><i></i><span>B</span></div>
+      <div id="head"></div>
+    </div>
+    <span class="time" id="durT">0:00</span>
+  </div>
+  <div id="ctrls">
+    <div class="grp">
+      <button id="loopBtn">リピート OFF</button>
+      <div class="pt a">
+        <span class="lbl">始点</span>
+        <button class="sm" data-n="a,-1" aria-label="始点を0.1秒前へ">−</button>
+        <span class="tv" id="aT">0:00.0</span>
+        <button class="sm" data-n="a,1" aria-label="始点を0.1秒後へ">＋</button>
+        <button id="setA">今の位置</button>
+      </div>
+      <div class="pt b">
+        <span class="lbl">終点</span>
+        <button class="sm" data-n="b,-1" aria-label="終点を0.1秒前へ">−</button>
+        <span class="tv" id="bT">0:00.0</span>
+        <button class="sm" data-n="b,1" aria-label="終点を0.1秒後へ">＋</button>
+        <button id="setB">今の位置</button>
+      </div>
+      <button id="resetAB" class="sm" aria-label="始点と終点をリセット"><svg viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg></button>
+    </div>
+    <div class="grp">
+      <span class="lbl">速度</span>
+      <button class="sm" id="spDown" aria-label="遅く">−</button>
+      <input type="range" id="speed" min="0.5" max="1" step="0.05" value="1" aria-label="再生速度">
+      <button class="sm" id="spUp" aria-label="速く">＋</button>
+      <button class="val" id="spVal" aria-label="1.0倍に戻す">1.00×</button>
+    </div>
+    <div class="grp">
+      <span class="lbl">スキップ</span>
+      <button class="sm" id="skDown" aria-label="スキップ秒数を減らす">−</button>
+      <span class="val" id="skVal">5秒</span>
+      <button class="sm" id="skUp" aria-label="スキップ秒数を増やす">＋</button>
+    </div>
+  </div>
+</section>
+
+<div id="toast" role="status"></div>
+
+<dialog id="dlg">
+  <form id="dlgForm">
+    <h2>動画を開く</h2>
+    <input id="urlInput" type="text" inputmode="url" placeholder="YouTubeのURLを貼り付け" autocomplete="off" spellcheck="false">
+    <div class="drow">
+      <button type="button" id="pasteBtn">クリップボードから貼り付け</button>
+      <button type="button" id="cancelBtn">閉じる</button>
+      <button type="submit" class="primary">開く</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+(() => {
+'use strict';
+
+/* ================= 基本 ================= */
+const $ = id => document.getElementById(id);
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+const now = () => performance.now();
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+const ST = { UNSTARTED:-1, ENDED:0, PLAYING:1, PAUSED:2, BUFFERING:3, CUED:5 };
+const MIN_GAP = 0.3;     // 始点と終点の最小間隔（秒）
+const NUDGE = 0.1;       // 微調整の単位（秒）
+const B_PREVIEW = 2;     // 終点を動かしたとき、何秒前から確認再生するか
+const PLAY_D = 'M8 5v14l11-7z', PAUSE_D = 'M6 5h4v14H6zm8 0h4v14h-4z';
+const ERR = {
+  2:'URLが正しくないようです',
+  5:'この動画は再生できません',
+  100:'動画が見つかりません（削除・非公開の可能性）',
+  101:'この動画は埋め込み再生が許可されていません',
+  150:'この動画は埋め込み再生が許可されていません',
+  153:'再生エラー（153）：公開したURL（https）から開いてください'
+};
+
+const el = {};
+['title','playIcon','frame','shield','empty','emptyOpen','curT','durT','seek','range','played','head','mA','mB',
+ 'loopBtn','aT','bT','setA','setB','resetAB','speed','spDown','spUp','spVal','skDown','skUp','skVal',
+ 'toast','dlg','dlgForm','urlInput','pasteBtn','cancelBtn','openBtn','playBtn','backBtn','fwdBtn']
+ .forEach(id => el[id] = $(id));
+
+/* ================= 状態 ================= */
+let player = null, apiReady = false, ready = false, createdWith = null, pending = null;
+let videoId = null, duration = 0, pendingAB = null;
+let A = 0, B = 0, loopOn = false;
+let rate = 1, actualRate = 1, rateAskedAt = 0, rateFixed = false;
+let skipSec = clamp(Math.round(Number(store.get('otoge.skip', 5))) || 5, 1, 20);
+let ytState = ST.UNSTARTED, wantPlay = false;
+// 再生位置の推定（YouTube APIの時刻更新は間隔が粗いので補間する）
+let lastRaw = NaN, base = 0, baseAt = 0, seekTarget = 0, ignoreRawUntil = 0, loopGuardUntil = 0;
+let drag = null, rafId = 0, lastScrubSeek = 0, lastCurText = '', metaTimer = 0;
+
+/* ================= 表示 ================= */
+function fmt(t, tenths){
+  t = Math.max(0, t || 0);
+  const m = Math.floor(t / 60);
+  const s = t - m * 60;
+  if(tenths){
+    const s10 = Math.floor(s * 10 + 1e-6) / 10;
+    return m + ':' + (s10 < 10 ? '0' : '') + s10.toFixed(1);
+  }
+  return m + ':' + String(Math.floor(s)).padStart(2, '0');
+}
+
+let toastTimer = 0;
+function toast(msg, ms){
+  el.toast.textContent = msg;
+  el.toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.toast.classList.remove('show'), ms || 2800);
+}
+
+function renderTime(t){
+  const p = duration ? clamp(t / duration, 0, 1) * 100 : 0;
+  el.head.style.left = p + '%';
+  el.played.style.width = p + '%';
+  const s = fmt(t, true);
+  if(s !== lastCurText){ el.curT.textContent = s; lastCurText = s; }
+}
+
+function renderAB(){
+  const show = duration > 0;
+  el.mA.style.display = el.mB.style.display = el.range.style.display = show ? '' : 'none';
+  if(show){
+    const pa = A / duration * 100, pb = B / duration * 100;
+    el.mA.style.left = pa + '%';
+    el.mB.style.left = pb + '%';
+    el.range.style.left = pa + '%';
+    el.range.style.width = Math.max(0, pb - pa) + '%';
+  }
+  el.range.classList.toggle('on', loopOn);
+  el.aT.textContent = fmt(A, true);
+  el.bT.textContent = fmt(B, true);
+  el.durT.textContent = fmt(duration, false);
+  el.loopBtn.classList.toggle('on', loopOn);
+  el.loopBtn.textContent = loopOn ? 'リピート ON' : 'リピート OFF';
+}
+
+function isPlayingUI(){ return ytState === ST.PLAYING || (ytState === ST.BUFFERING && wantPlay); }
+function updatePlayIcon(){ el.playIcon.setAttribute('d', isPlayingUI() ? PAUSE_D : PLAY_D); }
+
+/* ================= 再生位置 ================= */
+function resetClock(t){
+  base = t; baseAt = now(); seekTarget = t; ignoreRawUntil = now() + 1500; lastRaw = NaN;
+}
+function cur(){
+  if(!ready) return base;
+  const n = now();
+  let raw;
+  try{ raw = player.getCurrentTime(); }catch(e){ raw = undefined; }
+  if(typeof raw === 'number' && raw !== lastRaw){
+    lastRaw = raw;
+    if(n >= ignoreRawUntil || Math.abs(raw - seekTarget) < 0.75){ base = raw; baseAt = n; ignoreRawUntil = 0; }
+  }
+  if(ytState === ST.PLAYING) return base + Math.min((n - baseAt) / 1000 * actualRate, 0.5);
+  return base;
+}
+function seek(t){
+  if(!ready || !videoId) return;
+  const max = duration ? Math.max(0, duration - 0.1) : Math.max(0, t);
+  t = clamp(t, 0, max);
+  try{ player.seekTo(t, true); }catch(e){}
+  base = t; baseAt = now(); seekTarget = t; ignoreRawUntil = baseAt + 800;
+  kick();
+}
+
+/* 毎フレームの処理：表示更新＋リピート判定 */
+function tick(){
+  rafId = 0;
+  const scrubbing = !!(drag && drag.type === 'seek');
+  let t = scrubbing ? drag.t : cur();
+  if(loopOn && !scrubbing && duration && B - A >= MIN_GAP - 1e-6 && ytState === ST.PLAYING &&
+     t >= B - 0.03 && now() >= loopGuardUntil){
+    seek(A);
+    loopGuardUntil = now() + 300;
+    t = A;
+  }
+  renderTime(t);
+  if(ytState === ST.PLAYING || ytState === ST.BUFFERING || drag) rafId = requestAnimationFrame(tick);
+}
+function kick(){ if(!rafId) rafId = requestAnimationFrame(tick); }
+
+/* ================= YouTube ================= */
+window.onYouTubeIframeAPIReady = () => { apiReady = true; createPlayer(); };
+(() => {
+  const s = document.createElement('script');
+  s.src = 'https://www.youtube.com/iframe_api';
+  s.async = true;
+  s.onerror = () => toast('YouTubeに接続できません。通信状況を確認してください', 5000);
+  document.head.appendChild(s);
+})();
+
+function createPlayer(){
+  if(player) return;
+  const vars = { controls:0, disablekb:1, playsinline:1, rel:0, fs:0, iv_load_policy:3, cc_load_policy:0, enablejsapi:1 };
+  if(location.protocol === 'https:' || location.protocol === 'http:') vars.origin = location.origin;
+  const opts = { width:'100%', height:'100%', playerVars: vars,
+                 events:{ onReady, onStateChange, onPlaybackRateChange, onError } };
+  if(pending){
+    opts.videoId = pending.id;
+    createdWith = pending.id;
+    if(pending.start) vars.start = Math.floor(pending.start);
+  }
+  player = new YT.Player('player', opts);
+}
+
+function onReady(){
+  ready = true;
+  if(pending){
+    const p = pending; pending = null;
+    if(p.id === createdWith){ if(p.autoplay){ wantPlay = true; player.playVideo(); } }
+    else loadInto(p);
+  }
+  applyRate();
+  pollMeta();
+}
+
+function onStateChange(e){
+  ytState = e.data;
+  if(ytState === ST.PLAYING){
+    wantPlay = true;
+    if(!rateFixed){ rateFixed = true; applyRate(); }
+    requestWake();
+    // 再生開始時に時刻の基準を取り直す
+    try{
+      const r = player.getCurrentTime();
+      if(now() >= ignoreRawUntil || Math.abs(r - seekTarget) < 0.75){ base = r; baseAt = now(); lastRaw = r; }
+    }catch(err){}
+  } else {
+    cur();
+  }
+  if(ytState === ST.PAUSED) wantPlay = false;
+  if(ytState === ST.ENDED){
+    if(loopOn && duration){ seek(A); wantPlay = true; player.playVideo(); }
+    else wantPlay = false;
+  }
+  refreshMeta();
+  updatePlayIcon();
+  kick();
+}
+
+function onPlaybackRateChange(e){
+  const r = Number(e.data) || 1;
+  const t = cur(); base = t; baseAt = now();
+  actualRate = r;
+  if(Math.abs(r - rate) > 0.001){
+    if(now() - rateAskedAt < 2000){
+      toast(`この動画では ${rate.toFixed(2)}× を指定できず、${r}× で再生されます`, 4000);
+    } else {
+      applyRate(); // 動画切り替えで1倍に戻された場合は指定し直す
+    }
+  }
+}
+
+function onError(e){
+  toast(ERR[e.data] || ('再生エラー（' + e.data + '）'), 5000);
+  el.title.textContent = '';
+}
+
+function loadInto(p){
+  const o = { videoId: p.id, startSeconds: p.start || 0 };
+  if(p.autoplay) player.loadVideoById(o); else player.cueVideoById(o);
+}
+
+function refreshMeta(){
+  if(!ready || !videoId) return false;
+  let vd = null, d = 0;
+  try{ vd = player.getVideoData(); d = player.getDuration() || 0; }catch(e){ return false; }
+  if(!vd || vd.video_id !== videoId) return false;
+  if(vd.title) el.title.textContent = vd.title;
+  if(d > 0){
+    if(!duration){ duration = d; initAB(); }
+    else if(Math.abs(d - duration) > 0.5){ duration = d; B = Math.min(B, d); A = Math.min(A, Math.max(0, B - MIN_GAP)); renderAB(); }
+  }
+  return duration > 0 && !!vd.title;
+}
+function pollMeta(){
+  clearInterval(metaTimer);
+  let n = 0;
+  metaTimer = setInterval(() => { if(refreshMeta() || ++n > 80) clearInterval(metaTimer); }, 250);
+}
+
+function initAB(){
+  if(pendingAB && pendingAB.b <= duration + 0.5){
+    B = clamp(pendingAB.b, MIN_GAP, duration);
+    A = clamp(pendingAB.a, 0, B - MIN_GAP);
+  } else {
+    A = 0; B = duration;
+  }
+  pendingAB = null;
+  renderAB();
+  renderTime(cur());
+}
+
+/* 動画を開く */
+function openVideo(info, autoplay){
+  videoId = info.id;
+  store.set('otoge.last', info.id);
+  const saved = store.get('otoge.ab.' + info.id, null);
+  pendingAB = (saved && typeof saved.a === 'number' && typeof saved.b === 'number' && saved.b > saved.a) ? saved : null;
+  duration = 0; A = 0; B = 0;
+  loopOn = !!(pendingAB && pendingAB.loop);
+  rateFixed = false;
+  const start = info.start || (pendingAB && pendingAB.loop ? pendingAB.a : 0);
+  el.title.textContent = '読み込み中…';
+  el.empty.classList.add('hide');
+  resetClock(start);
+  wantPlay = !!autoplay;
+  const p = { id: info.id, start, autoplay: !!autoplay };
+  if(!ready){ pending = p; if(apiReady) createPlayer(); }
+  else loadInto(p);
+  renderAB();
+  renderTime(start);
+  updatePlayIcon();
+  if(ready) pollMeta();
+}
+
+/* URLから動画IDと開始時刻を取り出す */
+function parseT(s){
+  if(/^\d+(\.\d+)?$/.test(s)) return Number(s);
+  let sec = 0, x;
+  const r = /(\d+)([hms])/g;
+  while((x = r.exec(s))) sec += Number(x[1]) * ({ h:3600, m:60, s:1 })[x[2]];
+  return sec;
+}
+function parseYouTube(text){
+  if(!text) return null;
+  text = String(text).trim();
+  const m = text.match(/(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:[^#\s]*?&)?v=|shorts\/|embed\/|live\/|v\/)|youtu\.be\/)([A-Za-z0-9_-]{11})(?![A-Za-z0-9_-])/);
+  const id = m ? m[1] : (/^[A-Za-z0-9_-]{11}$/.test(text) ? text : null);
+  if(!id) return null;
+  let start = 0;
+  const t = text.match(/[?&#](?:t|start)=([0-9hms.]+)/);
+  if(t) start = parseT(t[1]);
+  return { id, start };
+}
+window.__parseYouTube = parseYouTube; // 動作確認用
+
+/* ================= 操作 ================= */
+function togglePlay(){
+  if(!videoId){ openDialog(); return; }
+  if(!ready) return;
+  if(isPlayingUI()){
+    wantPlay = false;
+    player.pauseVideo();
+  } else {
+    wantPlay = true;
+    if(loopOn && duration && cur() >= B - 0.05) seek(A);
+    player.playVideo();
+  }
+  updatePlayIcon();
+}
+
+function skip(dir){
+  if(!ready || !videoId) return;
+  seek(cur() + dir * skipSec);
+}
+
+function saveAB(){
+  if(videoId && duration) store.set('otoge.ab.' + videoId, { a:+A.toFixed(2), b:+B.toFixed(2), loop:loopOn });
+}
+function abChanged(seekTo){
+  loopOn = true;
+  saveAB();
+  renderAB();
+  if(seekTo !== undefined) seek(seekTo);
+}
+
+function setRate(r){
+  r = Math.round(clamp(r, 0.5, 1) * 20) / 20;
+  rate = r;
+  el.speed.value = String(r);
+  el.spVal.textContent = r.toFixed(2) + '×';
+  applyRate();
+}
+function applyRate(){
+  if(!ready) return;
+  rateAskedAt = now();
+  try{ player.setPlaybackRate(rate); }catch(e){}
+}
+
+function setSkip(n){
+  skipSec = clamp(n, 1, 20);
+  store.set('otoge.skip', skipSec);
+  el.skVal.textContent = skipSec + '秒';
+  document.querySelectorAll('.skn').forEach(s => s.textContent = skipSec);
+}
+
+/* 押しっぱなしで連続入力できるボタン */
+function hold(btn, step, end){
+  let t1 = 0, t2 = 0, active = false;
+  const stop = () => {
+    if(!active) return;
+    active = false; clearTimeout(t1); clearInterval(t2);
+    if(end) end();
+  };
+  btn.addEventListener('pointerdown', e => {
+    if(e.button > 0) return;
+    e.preventDefault();
+    active = true; step();
+    t1 = setTimeout(() => { t2 = setInterval(step, 70); }, 420);
+  });
+  ['pointerup','pointerleave','pointercancel'].forEach(ev => btn.addEventListener(ev, stop));
+  btn.addEventListener('contextmenu', e => e.preventDefault());
+}
+
+/* ---- シークバー（上半分：再生位置／下半分：A・Bのタブ） ---- */
+function dragMove(cx){
+  const r = drag.r;
+  const t = clamp((cx - r.left) / r.width, 0, 1) * duration;
+  if(drag.type === 'seek'){
+    drag.t = t;
+    renderTime(t);
+    const n = now();
+    if(n - lastScrubSeek > 150){ lastScrubSeek = n; try{ player.seekTo(t, false); }catch(e){} }
+  } else if(drag.type === 'a'){
+    A = clamp(t, 0, B - MIN_GAP); renderAB();
+  } else {
+    B = clamp(t, A + MIN_GAP, duration); renderAB();
+  }
+}
+function dragEnd(e){
+  if(!drag || (e && e.pointerId !== drag.id)) return;
+  const d = drag; drag = null;
+  if(d.type === 'seek') seek(d.t);
+  else abChanged(d.type === 'a' ? A : Math.max(A, B - B_PREVIEW));
+  kick();
+}
+el.seek.addEventListener('pointerdown', e => {
+  if(!duration || !ready) return;
+  e.preventDefault();
+  const r = el.seek.getBoundingClientRect();
+  const x = e.clientX - r.left, y = e.clientY - r.top;
+  let type = 'seek';
+  if(y >= 31){
+    const ax = A / duration * r.width, bx = B / duration * r.width;
+    type = x <= (ax + bx) / 2 ? 'a' : 'b';
+  }
+  drag = { type, id: e.pointerId, r, t: cur() };
+  try{ el.seek.setPointerCapture(e.pointerId); }catch(err){}
+  dragMove(e.clientX);
+  kick();
+});
+el.seek.addEventListener('pointermove', e => { if(drag && e.pointerId === drag.id) dragMove(e.clientX); });
+el.seek.addEventListener('pointerup', dragEnd);
+el.seek.addEventListener('pointercancel', dragEnd);
+
+/* ---- 各ボタン ---- */
+el.playBtn.addEventListener('click', togglePlay);
+el.backBtn.addEventListener('click', () => skip(-1));
+el.fwdBtn.addEventListener('click', () => skip(1));
+
+el.loopBtn.addEventListener('click', () => {
+  if(!duration) return;
+  loopOn = !loopOn;
+  if(loopOn){ const t = cur(); if(t >= B || t < A - 0.05) seek(A); }
+  saveAB(); renderAB();
+});
+el.setA.addEventListener('click', () => {
+  if(!duration) return;
+  const t = cur();
+  if(t > B - MIN_GAP) B = duration;
+  A = clamp(t, 0, B - MIN_GAP);
+  abChanged();
+});
+el.setB.addEventListener('click', () => {
+  if(!duration) return;
+  const t = cur();
+  if(t < A + MIN_GAP) A = 0;
+  B = clamp(t, A + MIN_GAP, duration);
+  abChanged();
+});
+el.resetAB.addEventListener('click', () => {
+  if(!duration) return;
+  A = 0; B = duration; loopOn = false;
+  saveAB(); renderAB();
+  toast('始点・終点をリセットしました');
+});
+document.querySelectorAll('[data-n]').forEach(btn => {
+  const [which, dir] = btn.dataset.n.split(',');
+  const d = Number(dir) * NUDGE;
+  hold(btn, () => {
+    if(!duration) return;
+    if(which === 'a') A = clamp(Math.round((A + d) * 10) / 10, 0, B - MIN_GAP);
+    else B = clamp(Math.round((B + d) * 10) / 10, A + MIN_GAP, duration);
+    loopOn = true;
+    renderAB();
+  }, () => {
+    if(!duration) return;
+    abChanged(which === 'a' ? A : Math.max(A, B - B_PREVIEW));
+  });
+});
+
+el.speed.addEventListener('input', () => setRate(parseFloat(el.speed.value)));
+hold(el.spDown, () => setRate(rate - 0.05));
+hold(el.spUp, () => setRate(rate + 0.05));
+el.spVal.addEventListener('click', () => setRate(1));
+hold(el.skDown, () => setSkip(skipSec - 1));
+hold(el.skUp, () => setSkip(skipSec + 1));
+
+/* ---- 動画の上を長押し：広告スキップなどのため一時的に直接タップ可能にする ---- */
+let unlockTimer = 0, pressTimer = 0;
+el.shield.addEventListener('pointerdown', () => {
+  clearTimeout(pressTimer);
+  pressTimer = setTimeout(() => {
+    el.frame.classList.add('unlocked');
+    toast('6秒間、動画を直接タップできます（広告スキップ用）', 3000);
+    clearTimeout(unlockTimer);
+    unlockTimer = setTimeout(() => el.frame.classList.remove('unlocked'), 6000);
+  }, 700);
+});
+['pointerup','pointercancel','pointerleave'].forEach(ev => el.shield.addEventListener(ev, () => clearTimeout(pressTimer)));
+el.shield.addEventListener('contextmenu', e => e.preventDefault());
+
+/* ---- URLダイアログ ---- */
+function openDialog(){
+  el.urlInput.value = '';
+  if(!el.dlg.open) el.dlg.showModal();
+}
+function tryOpen(text){
+  const info = parseYouTube(text);
+  if(!info){ toast('YouTubeのURLが見つかりませんでした'); return; }
+  el.dlg.close();
+  openVideo(info, true);
+}
+el.openBtn.addEventListener('click', openDialog);
+el.emptyOpen.addEventListener('click', openDialog);
+el.cancelBtn.addEventListener('click', () => el.dlg.close());
+el.dlgForm.addEventListener('submit', e => { e.preventDefault(); tryOpen(el.urlInput.value); });
+el.pasteBtn.addEventListener('click', async () => {
+  try{
+    const t = await navigator.clipboard.readText();
+    el.urlInput.value = t;
+    tryOpen(t);
+  }catch(err){
+    toast('入力欄を長押しして貼り付けてください');
+    el.urlInput.focus();
+  }
+});
+
+/* ---- キーボード（PCで試すとき用） ---- */
+document.addEventListener('keydown', e => {
+  if(el.dlg.open) return;
+  if(e.code === 'Space'){ e.preventDefault(); togglePlay(); }
+  else if(e.code === 'ArrowLeft'){ e.preventDefault(); skip(-1); }
+  else if(e.code === 'ArrowRight'){ e.preventDefault(); skip(1); }
+});
+
+/* ---- 画面を消さない ---- */
+let wakeLock = null;
+async function requestWake(){
+  try{
+    if('wakeLock' in navigator && !wakeLock && document.visibilityState === 'visible'){
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => { wakeLock = null; });
+    }
+  }catch(e){}
+}
+document.addEventListener('visibilitychange', () => {
+  if(document.visibilityState === 'visible'){ if(videoId) requestWake(); kick(); }
+});
+
+/* ================= 起動 ================= */
+function launch(){
+  const q = new URLSearchParams(location.search);
+  const shared = ['url','text','title','v'].map(k => q.get(k)).filter(Boolean).join(' ');
+  if(location.search) history.replaceState(null, '', location.pathname);
+  if(shared){
+    const info = parseYouTube(shared);
+    if(info){ openVideo(info, true); return; }
+    toast('共有された内容からYouTubeの動画が見つかりませんでした', 4000);
+  }
+  const last = store.get('otoge.last', null);
+  if(typeof last === 'string' && /^[A-Za-z0-9_-]{11}$/.test(last)){ openVideo({ id:last, start:0 }, false); return; }
+  el.empty.classList.remove('hide');
+}
+
+setSkip(skipSec);
+setRate(1);
+renderAB();
+renderTime(0);
+launch();
+
+if('serviceWorker' in navigator && location.protocol === 'https:'){
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+})();
+</script>
+</body>
+</html>
